@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "A restaurant order placed by a customer.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The anonymous user ID of the customer." },
+        "table": { "type": "string" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "preparing", "ready", "completed"], "description": "The order status." },
+        "paymentMethod": { "type": "string", "enum": ["Apple/Google Pay", "Credit / Debit Card", "Alipay", "WeChat Pay", "Cash"], "description": "The payment method chosen." },
+        "createdAt": { "type": "integer", "description": "Timestamp when the order was placed." }
+      },
+      "required": ["userId", "table", "total", "status", "paymentMethod", "createdAt"]
+    },
+    "OrderItem": {
+      "title": "OrderItem",
+      "description": "An item in an order.",
+      "type": "object",
+      "properties": {
+        "menuItemId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "quantity": { "type": "integer" }
+      },
+      "required": ["menuItemId", "name", "price", "quantity"]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Stores all orders."
+    },
+    "/orders/{orderId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/OrderItem" },
+      "description": "Line items for an order."
+    }
+  }
+}

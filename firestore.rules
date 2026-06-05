@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Definition
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    // Validation Blueprint for Order
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'table', 'total', 'status', 'paymentMethod', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.status in ['pending', 'preparing', 'ready', 'completed'] &&
+             data.paymentMethod in ['Apple/Google Pay', 'Credit / Debit Card', 'Alipay', 'WeChat Pay', 'Cash'];
+    }
+
+    // Validation Blueprint for OrderItem
+    function isValidOrderItem(data) {
+      return data.keys().hasAll(['menuItemId', 'name', 'price', 'quantity']) &&
+             data.price >= 0 &&
+             data.quantity > 0;
+    }
+
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidOrder(incoming());
+      
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && incoming().status in ['pending', 'preparing', 'ready', 'completed'];
+      allow delete: if false;
+
+      match /items/{itemId} {
+        function isOrderOwner() {
+          return getAfter(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid;
+        }
+
+        allow get: if isSignedIn() && isOrderOwner();
+        allow list: if isSignedIn() && isOrderOwner();
+
+        allow create: if isSignedIn() && isOrderOwner() && isValidOrderItem(incoming());
+
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}
